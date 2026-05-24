@@ -5,7 +5,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
-import com.example.myapplication.data.repository.FakeProductRepository
 import com.example.myapplication.domain.usecase.FilterProductsByCategoryUseCase
 import com.example.myapplication.domain.usecase.GetProductsUseCase
 import com.example.myapplication.domain.usecase.SearchProductsUseCase
@@ -21,29 +20,40 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import com.example.myapplication.presentation.navigation.BottomNavigationBar
+import com.example.myapplication.data.remote.RetrofitClient
+import com.example.myapplication.data.repository.ProductRepositoryImpl
+import com.example.myapplication.presentation.home.HomeViewModelFactory
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val repository = FakeProductRepository()
+        val repository = ProductRepositoryImpl(RetrofitClient.apiService)
+        val getProductsUseCase = GetProductsUseCase(repository)
 
-        val factory = CatalogViewModelFactory(
-            getProductsUseCase = GetProductsUseCase(repository),
+        val catalogFactory = CatalogViewModelFactory(
+            getProductsUseCase = getProductsUseCase,
             searchProductsUseCase = SearchProductsUseCase(repository),
             filterProductsByCategoryUseCase = FilterProductsByCategoryUseCase(repository)
+        )
+
+        val homeFactory = HomeViewModelFactory(
+            getProductsUseCase = getProductsUseCase
         )
 
         setContent {
             MyApplicationTheme {
                 val navController = rememberNavController()
 
-                val homeViewModel: HomeViewModel = viewModel()
+                val homeViewModel: HomeViewModel = viewModel(
+                    factory = homeFactory
+                )
                 val scannerViewModel: ScannerViewModel = viewModel()
                 val reportsViewModel: ReportsViewModel = viewModel()
 
                 val catalogViewModel: CatalogViewModel = viewModel(
-                    factory = factory
+                    factory = catalogFactory
                 )
 
                 Scaffold(

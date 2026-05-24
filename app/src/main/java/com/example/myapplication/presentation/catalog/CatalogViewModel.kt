@@ -47,6 +47,7 @@ class CatalogViewModel(
 
     fun searchProducts(query: String) {
         viewModelScope.launch {
+            _uiState.value = CatalogUiState.Loading
             try {
                 val products = searchProductsUseCase(query)
 
@@ -69,6 +70,7 @@ class CatalogViewModel(
 
     fun filterByCategory(category: ProductCategory) {
         viewModelScope.launch {
+            _uiState.value = CatalogUiState.Loading
             try {
                 val products = filterProductsByCategoryUseCase(category)
 
