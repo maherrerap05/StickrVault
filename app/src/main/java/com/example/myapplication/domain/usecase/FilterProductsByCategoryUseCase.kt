@@ -7,11 +7,6 @@ import com.example.myapplication.domain.repository.ProductRepository
 class FilterProductsByCategoryUseCase(
     private val repository: ProductRepository
 ) {
-
-    suspend operator fun invoke(
-        category: ProductCategory
-    ): List<Product> {
-
-        return repository.filterProductsByCategory(category)
-    }
+    suspend operator fun invoke(category: ProductCategory): List<Product> =
+        repository.filterProductsByCategory(category)
 }
