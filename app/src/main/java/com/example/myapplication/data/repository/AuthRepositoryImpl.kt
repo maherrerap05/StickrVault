@@ -16,4 +16,8 @@ class AuthRepositoryImpl(
             apiService.getUserByEmail("eq.$email").firstOrNull()?.toDomain()
         }.getOrNull()
     }
+
+    override suspend fun getUsers(): List<AppUser> = withContext(Dispatchers.IO) {
+        runCatching { apiService.getUsers().map { it.toDomain() } }.getOrDefault(emptyList())
+    }
 }

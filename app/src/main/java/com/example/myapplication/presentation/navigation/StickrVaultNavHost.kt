@@ -28,10 +28,8 @@ fun StickrVaultNavHost(
 ) {
     val currentUser by authViewModel.currentUser.collectAsState()
 
-    NavHost(
-        navController = navController,
-        startDestination = Routes.LOGIN
-    ) {
+    NavHost(navController = navController, startDestination = Routes.LOGIN) {
+
         composable(Routes.LOGIN) {
             LoginScreen(
                 viewModel = authViewModel,
@@ -52,12 +50,18 @@ fun StickrVaultNavHost(
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(0) { inclusive = true }
                     }
-                }
+                },
+                onNavigateCatalog = { navController.navigate(Routes.CATALOG) },
+                onNavigateScanner = { navController.navigate(Routes.SCANNER) },
+                onNavigateReports = { navController.navigate(Routes.REPORTS) }
             )
         }
 
         composable(Routes.CATALOG) {
-            CatalogScreen(viewModel = catalogViewModel)
+            CatalogScreen(
+                viewModel = catalogViewModel,
+                currentUser = currentUser
+            )
         }
 
         composable(Routes.SCANNER) {

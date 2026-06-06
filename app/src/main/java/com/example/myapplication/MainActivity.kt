@@ -34,9 +34,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val db                 = AppDatabase.getInstance(applicationContext)
-        val productDao         = db.productDao()
-        val stockMovementDao   = db.stockMovementDao()
+        val db               = AppDatabase.getInstance(applicationContext)
+        val productDao       = db.productDao()
+        val stockMovementDao = db.stockMovementDao()
 
         val productRepository       = ProductRepositoryImpl(RetrofitClient.apiService, productDao)
         val stockMovementRepository = StockMovementRepositoryImpl(RetrofitClient.apiService, stockMovementDao)
@@ -44,14 +44,20 @@ class MainActivity : ComponentActivity() {
 
         val getProductsUseCase       = GetProductsUseCase(productRepository)
         val getStockMovementsUseCase = GetStockMovementsUseCase(stockMovementRepository)
+        val getUsersUseCase          = GetUsersUseCase(authRepository)
 
         val authFactory    = AuthViewModelFactory(LoginUseCase(authRepository))
-        val catalogFactory = CatalogViewModelFactory(
-            getProductsUseCase             = getProductsUseCase,
-            searchProductsUseCase          = SearchProductsUseCase(productRepository),
-            filterProductsByCategoryUseCase = FilterProductsByCategoryUseCase(productRepository)
+        val homeFactory    = HomeViewModelFactory(
+            getProductsUseCase       = getProductsUseCase,
+            getStockMovementsUseCase = getStockMovementsUseCase,
+            getUsersUseCase          = getUsersUseCase
         )
-        val homeFactory    = HomeViewModelFactory(getProductsUseCase = getProductsUseCase)
+        val catalogFactory = CatalogViewModelFactory(
+            getProductsUseCase              = getProductsUseCase,
+            searchProductsUseCase           = SearchProductsUseCase(productRepository),
+            filterProductsByCategoryUseCase = FilterProductsByCategoryUseCase(productRepository),
+            addProductUseCase               = AddProductUseCase(productRepository)
+        )
         val reportsFactory = ReportsViewModelFactory(
             getProductsUseCase       = getProductsUseCase,
             getStockMovementsUseCase = getStockMovementsUseCase
@@ -64,21 +70,19 @@ class MainActivity : ComponentActivity() {
             MyApplicationTheme {
                 val navController = rememberNavController()
 
-                val authViewModel    : AuthViewModel     = viewModel(factory = authFactory)
-                val catalogViewModel : CatalogViewModel  = viewModel(factory = catalogFactory)
-                val homeViewModel    : HomeViewModel     = viewModel(factory = homeFactory)
-                val reportsViewModel : ReportsViewModel  = viewModel(factory = reportsFactory)
-                val scannerViewModel : ScannerViewModel  = viewModel(factory = scannerFactory)
+                val authViewModel    : AuthViewModel    = viewModel(factory = authFactory)
+                val catalogViewModel : CatalogViewModel = viewModel(factory = catalogFactory)
+                val homeViewModel    : HomeViewModel    = viewModel(factory = homeFactory)
+                val reportsViewModel : ReportsViewModel = viewModel(factory = reportsFactory)
+                val scannerViewModel : ScannerViewModel = viewModel(factory = scannerFactory)
 
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentRoute = navBackStackEntry?.destination?.route
+                val currentRoute  = navBackStackEntry?.destination?.route
                 val showBottomBar = currentRoute != Routes.LOGIN
 
                 Scaffold(
                     bottomBar = {
-                        if (showBottomBar) {
-                            BottomNavigationBar(navController = navController)
-                        }
+                        if (showBottomBar) BottomNavigationBar(navController = navController)
                     }
                 ) { innerPadding ->
                     Box(modifier = Modifier.padding(innerPadding)) {
