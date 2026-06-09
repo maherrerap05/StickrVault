@@ -86,14 +86,23 @@ class CatalogViewModel(
                     imageUrl = null,
                     ocrIdentifier = ocrIdentifier?.ifBlank { null },
                     lastUpdated = System.currentTimeMillis(),
-                    isSynced = true
+                    isSynced = false
                 )
 
                 val savedProduct = addProductUseCase(product)
 
                 if (savedProduct != null) {
+                    val products = getProductsUseCase()
+                    val pending = products.count { !it.isSynced }
+
                     _uiState.value = CatalogUiState.Success(
-                        products = listOf(savedProduct)
+                        products = products,
+                        isOffline = !savedProduct.isSynced,
+                        pendingSyncCount = pending,
+                        message = if (!savedProduct.isSynced)
+                            "Modo offline: producto guardado localmente."
+                        else
+                            "Producto sincronizado correctamente."
                     )
                 } else {
                     _uiState.value = CatalogUiState.Error("No se pudo agregar el producto.")

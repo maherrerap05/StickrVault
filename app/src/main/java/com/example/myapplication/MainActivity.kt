@@ -37,10 +37,11 @@ class MainActivity : ComponentActivity() {
         val db               = AppDatabase.getInstance(applicationContext)
         val productDao       = db.productDao()
         val stockMovementDao = db.stockMovementDao()
+        val appUserDao = db.appUserDao()
 
         val productRepository       = ProductRepositoryImpl(RetrofitClient.apiService, productDao)
         val stockMovementRepository = StockMovementRepositoryImpl(RetrofitClient.apiService, stockMovementDao)
-        val authRepository          = AuthRepositoryImpl(RetrofitClient.apiService)
+        val authRepository = AuthRepositoryImpl(RetrofitClient.apiService, appUserDao)
 
         val getProductsUseCase       = GetProductsUseCase(productRepository)
         val getStockMovementsUseCase = GetStockMovementsUseCase(stockMovementRepository)

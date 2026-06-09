@@ -75,6 +75,18 @@ fun CatalogScreen(
             Spacer(modifier = Modifier.height(10.dp))
 
             val successState = uiState as? CatalogUiState.Success
+
+            if (successState?.isOffline == true || (successState?.pendingSyncCount ?: 0) > 0) {
+                AssistChip(
+                    onClick = {},
+                    label = {
+                        Text("Modo offline · Pendientes: ${successState?.pendingSyncCount ?: 0}")
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
             val activeFilter = successState?.activeFilter
 
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -6,18 +6,22 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.myapplication.data.local.dao.ProductDao
 import com.example.myapplication.data.local.dao.StockMovementDao
+import com.example.myapplication.data.local.entity.AppUserEntity
 import com.example.myapplication.data.local.entity.ProductEntity
 import com.example.myapplication.data.local.entity.StockMovementEntity
+import com.example.myapplication.data.local.dao.AppUserDao
+
 
 @Database(
-    entities = [ProductEntity::class, StockMovementEntity::class],
-    version = 2,
+    entities = [ProductEntity::class, StockMovementEntity::class, AppUserEntity::class],
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun productDao(): ProductDao
     abstract fun stockMovementDao(): StockMovementDao
+    abstract fun appUserDao(): AppUserDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null

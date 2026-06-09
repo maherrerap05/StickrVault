@@ -9,7 +9,10 @@ sealed class CatalogUiState {
     data class Success(
         val products: List<Product>,
         val activeFilter: ProductCategory? = null,
-        val searchQuery: String = ""
+        val searchQuery: String = "",
+        val isOffline: Boolean = false,
+        val pendingSyncCount: Int = 0,
+        val message: String? = null
     ) : CatalogUiState()
 
     data class Error(

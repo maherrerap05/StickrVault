@@ -12,4 +12,5 @@ interface ProductRepository {
     suspend fun addProduct(product: Product): Product?
     suspend fun updateProduct(product: Product): Product?
     suspend fun deleteProduct(id: String)
+    suspend fun syncPendingProducts()
 }
