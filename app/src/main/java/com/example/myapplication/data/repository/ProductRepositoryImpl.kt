@@ -32,15 +32,30 @@ class ProductRepositoryImpl(
     }
 
     override suspend fun searchProducts(query: String): List<Product> = withContext(Dispatchers.IO) {
-        getProducts().filter { p ->
-            p.name.contains(query, ignoreCase = true) ||
-                    p.description.contains(query, ignoreCase = true) ||
-                    p.ocrIdentifier?.contains(query, ignoreCase = true) == true
+        try {
+            apiService.searchProductsRemote(
+                orFilter = "(name.ilike.*$query*,description.ilike.*$query*,ocr_identifier.ilike.*$query*)"
+            ).map { it.toDomain() }
+        } catch (e: Exception) {
+            productDao.getAllProducts().map { it.toDomain() }.filter { p ->
+                p.name.contains(query, ignoreCase = true) ||
+                        p.description.contains(query, ignoreCase = true) ||
+                        p.ocrIdentifier?.contains(query, ignoreCase = true) == true
+            }
         }
     }
 
     override suspend fun filterProductsByCategory(category: ProductCategory): List<Product> =
-        withContext(Dispatchers.IO) { getProducts().filter { it.category == category } }
+        withContext(Dispatchers.IO) {
+            try {
+                apiService.filterProductsByCategoryRemote(
+                    categoryFilter = "eq.${category.name}"
+                ).map { it.toDomain() }
+            } catch (e: Exception) {
+                productDao.getAllProducts().map { it.toDomain() }
+                    .filter { it.category == category }
+            }
+        }
 
     override suspend fun getProductByOcrIdentifier(identifier: String): Product? =
         withContext(Dispatchers.IO) {

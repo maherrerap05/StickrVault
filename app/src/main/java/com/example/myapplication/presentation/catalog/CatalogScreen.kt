@@ -74,20 +74,28 @@ fun CatalogScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
+            val successState = uiState as? CatalogUiState.Success
+            val activeFilter = successState?.activeFilter
+
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 item {
                     FilterChip(
-                        selected = uiState is CatalogUiState.Success &&
-                                (uiState as CatalogUiState.Success).activeFilter == null,
-                        onClick = { searchText = ""; viewModel.loadProducts() },
+                        selected = activeFilter == null,
+                        onClick = {
+                            searchText = ""
+                            viewModel.loadProducts()
+                        },
                         label = { Text("Todos") }
                     )
                 }
+
                 items(ProductCategory.entries) { category ->
                     FilterChip(
-                        selected = uiState is CatalogUiState.Success &&
-                                (uiState as CatalogUiState.Success).activeFilter == category,
-                        onClick = { searchText = ""; viewModel.filterByCategory(category) },
+                        selected = activeFilter == category,
+                        onClick = {
+                            searchText = ""
+                            viewModel.filterByCategory(category)
+                        },
                         label = { Text(category.displayName()) }
                     )
                 }
@@ -95,23 +103,30 @@ fun CatalogScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            when (uiState) {
+            when (val state = uiState) {
                 is CatalogUiState.Loading -> Box(Modifier.fillMaxSize(), Alignment.Center) {
                     CircularProgressIndicator()
                 }
+
                 is CatalogUiState.Empty -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                    Text("No hay productos disponibles",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "No hay productos disponibles",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
+
                 is CatalogUiState.Error -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                    Text((uiState as CatalogUiState.Error).message,
-                        color = MaterialTheme.colorScheme.error)
+                    Text(
+                        state.message,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
+
                 is CatalogUiState.Success -> LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(bottom = 80.dp)
                 ) {
-                    items((uiState as CatalogUiState.Success).products) { product ->
+                    items(state.products) { product ->
                         ProductCard(product = product, canEdit = canEdit)
                     }
                 }
@@ -184,14 +199,33 @@ fun AddProductDialog(
             }
         },
         confirmButton = {
+            val stockValue = stock.toIntOrNull()
+            val minStockValue = minStock.toIntOrNull()
+
+            val isFormValid =
+                name.isNotBlank() &&
+                        stockValue != null &&
+                        minStockValue != null &&
+                        stockValue >= 0 &&
+                        minStockValue >= 0 &&
+                        minStockValue < stockValue
+
+            if (stockValue != null && minStockValue != null && minStockValue >= stockValue) {
+                Text(
+                    text = "El stock mínimo debe ser menor que el stock actual.",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
             Button(
                 onClick = {
-                    val s = stock.toIntOrNull() ?: 0
-                    val m = minStock.toIntOrNull() ?: 15
-                    onConfirm(name, category, s, m, ocrId)
+                    onConfirm(name, category, stockValue ?: 0, minStockValue ?: 0, ocrId)
                 },
-                enabled = name.isNotBlank() && stock.isNotBlank()
-            ) { Text("Agregar") }
+                enabled = isFormValid
+            ) {
+                Text("Agregar")
+            }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancelar") }

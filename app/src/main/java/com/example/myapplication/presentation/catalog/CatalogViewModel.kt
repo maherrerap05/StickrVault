@@ -73,23 +73,36 @@ class CatalogViewModel(
         ocrIdentifier: String?
     ) {
         viewModelScope.launch {
+            _uiState.value = CatalogUiState.Loading
+
             try {
                 val product = Product(
-                    id           = UUID.randomUUID().toString(),
-                    name         = name,
-                    category     = category,
-                    description  = "Producto registrado en bodega",
+                    id = UUID.randomUUID().toString(),
+                    name = name.trim(),
+                    category = category,
+                    description = "Producto registrado en bodega",
                     currentStock = currentStock,
                     minimumStock = minimumStock,
-                    imageUrl     = null,
+                    imageUrl = null,
                     ocrIdentifier = ocrIdentifier?.ifBlank { null },
-                    lastUpdated  = System.currentTimeMillis(),
-                    isSynced     = false
+                    lastUpdated = System.currentTimeMillis(),
+                    isSynced = true
                 )
-                addProductUseCase(product)
-                loadProducts()
+
+                val savedProduct = addProductUseCase(product)
+
+                if (savedProduct != null) {
+                    _uiState.value = CatalogUiState.Success(
+                        products = listOf(savedProduct)
+                    )
+                } else {
+                    _uiState.value = CatalogUiState.Error("No se pudo agregar el producto.")
+                }
+
             } catch (e: Exception) {
-                loadProducts()
+                _uiState.value = CatalogUiState.Error(
+                    e.message ?: "Error al agregar producto"
+                )
             }
         }
     }

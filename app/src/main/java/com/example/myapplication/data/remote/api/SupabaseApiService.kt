@@ -36,4 +36,14 @@ interface SupabaseApiService {
     @Headers("Content-Type: application/json", "Prefer: return=representation")
     @POST("stock_movements")
     suspend fun addStockMovement(@Body movement: StockMovementDto): List<StockMovementDto>
+
+    @GET("products")
+    suspend fun searchProductsRemote(
+        @Query("or") orFilter: String
+    ): List<ProductDto>
+
+    @GET("products")
+    suspend fun filterProductsByCategoryRemote(
+        @Query("category") categoryFilter: String
+    ): List<ProductDto>
 }
