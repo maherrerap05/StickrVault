@@ -104,14 +104,30 @@ class ProductRepositoryImpl(
     }
 
     override suspend fun updateProduct(product: Product): Product? = withContext(Dispatchers.IO) {
-        runCatching {
-            val result = apiService.updateProduct("eq.${product.id}", product.toDto())
-                .firstOrNull()?.toDomain()
-            result?.let { productDao.upsertProduct(it.toEntity()) }
-            result
-        }.getOrNull()
-    }
+        val localProduct = product.copy(
+            lastUpdated = System.currentTimeMillis(),
+            isSynced = false
+        )
 
+        productDao.upsertProduct(localProduct.toEntity())
+
+        try {
+            val remoteProduct = apiService.updateProduct(
+                "eq.${product.id}",
+                localProduct.copy(isSynced = true).toDto()
+            ).firstOrNull()?.toDomain()
+
+            if (remoteProduct != null) {
+                productDao.upsertProduct(remoteProduct.copy(isSynced = true).toEntity())
+                remoteProduct.copy(isSynced = true)
+            } else {
+                localProduct
+            }
+
+        } catch (e: Exception) {
+            localProduct
+        }
+    }
     override suspend fun deleteProduct(id: String) = withContext(Dispatchers.IO) {
         runCatching {
             apiService.deleteProduct("eq.$id")
@@ -127,15 +143,40 @@ class ProductRepositoryImpl(
             runCatching {
                 val product = entity.toDomain()
 
-                val result = apiService.addProduct(
+                val updatedRemote = apiService.updateProduct(
+                    "eq.${product.id}",
                     product.copy(isSynced = true).toDto()
                 ).firstOrNull()?.toDomain()
 
-                if (result != null) {
-                    productDao.upsertProduct(result.copy(isSynced = true).toEntity())
+                if (updatedRemote != null) {
+                    productDao.upsertProduct(updatedRemote.copy(isSynced = true).toEntity())
+                } else {
+                    val createdRemote = apiService.addProduct(
+                        product.copy(isSynced = true).toDto()
+                    ).firstOrNull()?.toDomain()
+
+                    if (createdRemote != null) {
+                        productDao.upsertProduct(createdRemote.copy(isSynced = true).toEntity())
+                    }
                 }
             }
         }
+    }
+
+    override suspend fun getProductByNameAndCategory(
+        name: String,
+        category: ProductCategory
+    ): Product? = withContext(Dispatchers.IO) {
+        productDao.getProductByNameAndCategory(name.trim(), category.name)?.toDomain()
+            ?: runCatching {
+                syncPendingProducts()
+
+                apiService.filterProductsByCategoryRemote("eq.${category.name}")
+                    .map { it.toDomain().copy(isSynced = true) }
+                    .firstOrNull {
+                        it.name.trim().equals(name.trim(), ignoreCase = true)
+                    }
+            }.getOrNull()
     }
 
     private fun Product.toDto() = ProductDto(

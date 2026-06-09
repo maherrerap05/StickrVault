@@ -29,4 +29,18 @@ interface ProductDao {
 
     @Query("UPDATE products SET isSynced = 1 WHERE id = :id")
     suspend fun markProductAsSynced(id: String)
+
+
+    @Query("""
+    SELECT * FROM products 
+    WHERE LOWER(TRIM(name)) = LOWER(TRIM(:name))
+    AND category = :category
+    LIMIT 1
+    """)
+    suspend fun getProductByNameAndCategory(
+        name: String,
+        category: String
+    ): ProductEntity?
+
+
 }

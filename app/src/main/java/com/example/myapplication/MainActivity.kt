@@ -54,11 +54,15 @@ class MainActivity : ComponentActivity() {
             getUsersUseCase          = getUsersUseCase
         )
         val catalogFactory = CatalogViewModelFactory(
-            getProductsUseCase              = getProductsUseCase,
-            searchProductsUseCase           = SearchProductsUseCase(productRepository),
+            getProductsUseCase = getProductsUseCase,
+            searchProductsUseCase = SearchProductsUseCase(productRepository),
             filterProductsByCategoryUseCase = FilterProductsByCategoryUseCase(productRepository),
-            addProductUseCase               = AddProductUseCase(productRepository)
+            addProductUseCase = AddProductUseCase(productRepository),
+            getProductByNameAndCategoryUseCase = GetProductByNameAndCategoryUseCase(productRepository),
+            updateProductUseCase = UpdateProductUseCase(productRepository),
+            addStockMovementUseCase = AddStockMovementUseCase(stockMovementRepository)
         )
+
         val reportsFactory = ReportsViewModelFactory(
             getProductsUseCase       = getProductsUseCase,
             getStockMovementsUseCase = getStockMovementsUseCase
