@@ -44,49 +44,49 @@ fun StickrVaultNavHost(
         return
     }
 
-    val startDestination = if (currentUser != null) Routes.HOME else Routes.LOGIN
+    val startDestination: Any = if (currentUser != null) Routes.Home else Routes.Login
 
     NavHost(navController = navController, startDestination = startDestination) {
 
-        composable(Routes.LOGIN) {
+        composable<Routes.Login> {
             LoginScreen(
                 viewModel = authViewModel,
                 onLoginSuccess = {
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.LOGIN) { inclusive = true }
+                    navController.navigate(Routes.Home) {
+                        popUpTo<Routes.Login> { inclusive = true }
                     }
                 }
             )
         }
 
-        composable(Routes.HOME) {
+        composable<Routes.Home> {
             HomeScreen(
                 viewModel = homeViewModel,
                 currentUser = currentUser,
                 onLogout = {
                     authViewModel.logout()
-                    navController.navigate(Routes.LOGIN) {
+                    navController.navigate(Routes.Login) {
                         popUpTo(0) { inclusive = true }
                     }
                 },
-                onNavigateCatalog = { navController.navigate(Routes.CATALOG) },
-                onNavigateScanner = { navController.navigate(Routes.SCANNER) },
-                onNavigateReports = { navController.navigate(Routes.REPORTS) }
+                onNavigateCatalog = { navController.navigate(Routes.Catalog) },
+                onNavigateScanner = { navController.navigate(Routes.Scanner) },
+                onNavigateReports = { navController.navigate(Routes.Reports) }
             )
         }
 
-        composable(Routes.CATALOG) {
+        composable<Routes.Catalog> {
             CatalogScreen(
                 viewModel = catalogViewModel,
                 currentUser = currentUser
             )
         }
 
-        composable(Routes.SCANNER) {
+        composable<Routes.Scanner> {
             ScannerScreen(viewModel = scannerViewModel)
         }
 
-        composable(Routes.REPORTS) {
+        composable<Routes.Reports> {
             ReportsScreen(viewModel = reportsViewModel)
         }
     }

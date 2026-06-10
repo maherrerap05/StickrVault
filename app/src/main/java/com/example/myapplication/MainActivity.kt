@@ -9,6 +9,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.myapplication.data.local.database.AppDatabase
@@ -88,8 +89,9 @@ class MainActivity : ComponentActivity() {
                 val scannerViewModel : ScannerViewModel = viewModel(factory = scannerFactory)
 
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentRoute  = navBackStackEntry?.destination?.route
-                val showBottomBar = currentRoute != Routes.LOGIN
+                val showBottomBar = navBackStackEntry
+                    ?.destination
+                    ?.hasRoute<Routes.Login>() != true
 
                 Scaffold(
                     bottomBar = {

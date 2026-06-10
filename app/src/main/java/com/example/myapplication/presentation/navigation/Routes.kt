@@ -1,9 +1,20 @@
 package com.example.myapplication.presentation.navigation
 
+import kotlinx.serialization.Serializable
+
 object Routes {
-    const val LOGIN   = "login"
-    const val HOME    = "home"
-    const val CATALOG = "catalog"
-    const val SCANNER = "scanner"
-    const val REPORTS = "reports"
+    @Serializable
+    data object Login
+
+    @Serializable
+    data object Home
+
+    @Serializable
+    data object Catalog
+
+    @Serializable
+    data object Scanner
+
+    @Serializable
+    data object Reports
 }

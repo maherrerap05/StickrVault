@@ -11,23 +11,23 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.currentBackStackEntryAsState
 
 @Composable
 fun BottomNavigationBar(
     navController: NavHostController
 ) {
-    val currentRoute = navController
+    val currentDestination = navController
         .currentBackStackEntryAsState()
         .value
         ?.destination
-        ?.route
 
     NavigationBar {
         NavigationBarItem(
-            selected = currentRoute == Routes.HOME,
+            selected = currentDestination?.hasRoute<Routes.Home>() == true,
             onClick = {
-                navController.navigate(Routes.HOME) {
+                navController.navigate(Routes.Home) {
                     launchSingleTop = true
                 }
             },
@@ -40,9 +40,9 @@ fun BottomNavigationBar(
         )
 
         NavigationBarItem(
-            selected = currentRoute == Routes.CATALOG,
+            selected = currentDestination?.hasRoute<Routes.Catalog>() == true,
             onClick = {
-                navController.navigate(Routes.CATALOG) {
+                navController.navigate(Routes.Catalog) {
                     launchSingleTop = true
                 }
             },
@@ -55,9 +55,9 @@ fun BottomNavigationBar(
         )
 
         NavigationBarItem(
-            selected = currentRoute == Routes.SCANNER,
+            selected = currentDestination?.hasRoute<Routes.Scanner>() == true,
             onClick = {
-                navController.navigate(Routes.SCANNER) {
+                navController.navigate(Routes.Scanner) {
                     launchSingleTop = true
                 }
             },
@@ -70,9 +70,9 @@ fun BottomNavigationBar(
         )
 
         NavigationBarItem(
-            selected = currentRoute == Routes.REPORTS,
+            selected = currentDestination?.hasRoute<Routes.Reports>() == true,
             onClick = {
-                navController.navigate(Routes.REPORTS) {
+                navController.navigate(Routes.Reports) {
                     launchSingleTop = true
                 }
             },
