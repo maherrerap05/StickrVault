@@ -1,6 +1,7 @@
 package com.example.myapplication.data.repository
 
 import com.example.myapplication.data.local.dao.AppUserDao
+import com.example.myapplication.data.local.session.SessionPreferences
 import com.example.myapplication.data.mapper.toDomain
 import com.example.myapplication.data.mapper.toEntity
 import com.example.myapplication.data.remote.api.SupabaseApiService
@@ -11,8 +12,28 @@ import kotlinx.coroutines.withContext
 
 class AuthRepositoryImpl(
     private val apiService: SupabaseApiService,
-    private val appUserDao: AppUserDao
+    private val appUserDao: AppUserDao,
+    private val sessionPreferences: SessionPreferences
 ) : AuthRepository {
+
+    override suspend fun getSavedSession(): AppUser? = withContext(Dispatchers.IO) {
+        val userId = sessionPreferences.getSavedUserId()
+        if (userId != null) {
+            appUserDao.getUserById(userId)?.toDomain()
+        } else {
+            sessionPreferences.getSavedEmail()
+                ?.let { email -> appUserDao.getUserByEmail(email)?.toDomain() }
+        }
+    }
+
+    override suspend fun saveSession(user: AppUser) = withContext(Dispatchers.IO) {
+        sessionPreferences.saveSession(user.id, user.email)
+        appUserDao.upsertUser(user.toEntity())
+    }
+
+    override suspend fun clearSession() = withContext(Dispatchers.IO) {
+        sessionPreferences.clearSession()
+    }
 
     override suspend fun login(email: String): AppUser? = withContext(Dispatchers.IO) {
         val cleanEmail = email.trim()
@@ -23,14 +44,15 @@ class AuthRepositoryImpl(
                 ?.toDomain()
 
             if (remoteUser != null) {
-                appUserDao.upsertUser(remoteUser.toEntity())
+                saveSession(remoteUser)
                 remoteUser
             } else {
                 null
             }
-
         } catch (e: Exception) {
-            appUserDao.getUserByEmail(cleanEmail)?.toDomain()
+            appUserDao.getUserByEmail(cleanEmail)?.toDomain()?.also { localUser ->
+                saveSession(localUser)
+            }
         }
     }
 

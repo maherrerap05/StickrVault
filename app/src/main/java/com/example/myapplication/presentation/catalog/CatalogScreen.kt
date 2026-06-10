@@ -26,16 +26,22 @@ fun CatalogScreen(
     currentUser: AppUser? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val addProductDraft by viewModel.addProductDraft.collectAsState()
+    val isAddProductDialogVisible by viewModel.isAddProductDialogVisible.collectAsState()
     var searchText by remember { mutableStateOf("") }
-    var showDialog by remember { mutableStateOf(false) }
 
     val canEdit = currentUser?.role != UserRole.AUDITOR
     val successState = uiState as? CatalogUiState.Success
+    val catalogProducts by viewModel.catalogProducts.collectAsState()
 
-    if (showDialog) {
+    if (isAddProductDialogVisible) {
         AddProductDialog(
-            products = successState?.products.orEmpty(),
-            onDismiss = { showDialog = false },
+            draft = addProductDraft,
+            products = catalogProducts,
+            onDismiss = viewModel::dismissAddProductDialog,
+            onCancel = viewModel::cancelAddProductDialog,
+            onDraftChange = viewModel::updateAddProductDraft,
+            onVerify = viewModel::verifyAddProductDraft,
             onConfirm = { name, category, stock, minStock, ocrId ->
                 viewModel.saveManualProduct(
                     name = name,
@@ -45,7 +51,6 @@ fun CatalogScreen(
                     ocrIdentifier = ocrId,
                     currentUser = currentUser
                 )
-                showDialog = false
             }
         )
     }
@@ -53,7 +58,7 @@ fun CatalogScreen(
     Scaffold(
         floatingActionButton = {
             if (canEdit) {
-                FloatingActionButton(onClick = { showDialog = true }) {
+                FloatingActionButton(onClick = viewModel::openAddProductDialog) {
                     Icon(Icons.Default.Add, contentDescription = "Agregar producto")
                 }
             }
@@ -183,19 +188,25 @@ fun CatalogScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddProductDialog(
+    draft: AddProductDraft,
     products: List<Product>,
     onDismiss: () -> Unit,
+    onCancel: () -> Unit,
+    onDraftChange: ((AddProductDraft) -> AddProductDraft) -> Unit,
+    onVerify: () -> Unit,
     onConfirm: (name: String, category: ProductCategory, stock: Int, minStock: Int, ocrId: String) -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf(ProductCategory.STICKER_INDIVIDUAL) }
-    var stock by remember { mutableStateOf("") }
-    var minStock by remember { mutableStateOf("15") }
-    var ocrId by remember { mutableStateOf("") }
-    var expanded by remember { mutableStateOf(false) }
+    val name = draft.name
+    val category = draft.category
+    val stock = draft.stock
+    val minStock = draft.minStock
+    val ocrId = draft.ocrId
+    val wasVerified = draft.wasVerified
+    val existingProduct = draft.existingProductId?.let { id ->
+        products.firstOrNull { it.id == id }
+    }
 
-    var wasVerified by remember { mutableStateOf(false) }
-    var existingProduct by remember { mutableStateOf<Product?>(null) }
+    var expanded by remember { mutableStateOf(false) }
 
     val isExistingProduct = wasVerified && existingProduct != null
     val isNewProduct = wasVerified && existingProduct == null
@@ -230,17 +241,6 @@ fun AddProductDialog(
         else -> false
     }
 
-    fun verifyProduct() {
-        existingProduct = products.firstOrNull {
-            it.name.trim().equals(name.trim(), ignoreCase = true) &&
-                    it.category == category
-        }
-        wasVerified = true
-        stock = ""
-        minStock = "15"
-        ocrId = ""
-    }
-
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -258,11 +258,15 @@ fun AddProductDialog(
 
                 OutlinedTextField(
                     value = name,
-                    onValueChange = {
-                        name = it
-                        wasVerified = false
-                        existingProduct = null
-                        stock = ""
+                    onValueChange = { value ->
+                        onDraftChange {
+                            it.copy(
+                                name = value,
+                                wasVerified = false,
+                                existingProductId = null,
+                                stock = ""
+                            )
+                        }
                     },
                     label = { Text("Nombre del producto") },
                     modifier = Modifier.fillMaxWidth(),
@@ -294,11 +298,15 @@ fun AddProductDialog(
                             DropdownMenuItem(
                                 text = { Text(cat.displayName()) },
                                 onClick = {
-                                    category = cat
+                                    onDraftChange {
+                                        it.copy(
+                                            category = cat,
+                                            wasVerified = false,
+                                            existingProductId = null,
+                                            stock = ""
+                                        )
+                                    }
                                     expanded = false
-                                    wasVerified = false
-                                    existingProduct = null
-                                    stock = ""
                                 }
                             )
                         }
@@ -307,7 +315,7 @@ fun AddProductDialog(
 
                 if (!wasVerified) {
                     Button(
-                        onClick = { verifyProduct() },
+                        onClick = onVerify,
                         enabled = canVerify,
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -325,7 +333,7 @@ fun AddProductDialog(
 
                     OutlinedTextField(
                         value = stock,
-                        onValueChange = { stock = it },
+                        onValueChange = { value -> onDraftChange { it.copy(stock = value) } },
                         label = { Text("Cantidad a modificar") },
                         placeholder = { Text("Ej: 10 o -5") },
                         modifier = Modifier.fillMaxWidth(),
@@ -368,7 +376,7 @@ fun AddProductDialog(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
                             value = stock,
-                            onValueChange = { stock = it },
+                            onValueChange = { value -> onDraftChange { it.copy(stock = value) } },
                             label = { Text("Stock inicial") },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
@@ -377,7 +385,7 @@ fun AddProductDialog(
 
                         OutlinedTextField(
                             value = minStock,
-                            onValueChange = { minStock = it },
+                            onValueChange = { value -> onDraftChange { it.copy(minStock = value) } },
                             label = { Text("Stock mínimo") },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
@@ -395,7 +403,7 @@ fun AddProductDialog(
 
                     OutlinedTextField(
                         value = ocrId,
-                        onValueChange = { ocrId = it },
+                        onValueChange = { value -> onDraftChange { it.copy(ocrId = value) } },
                         label = { Text("ID OCR (opcional)") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
@@ -426,7 +434,7 @@ fun AddProductDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onCancel) {
                 Text("Cancelar")
             }
         }

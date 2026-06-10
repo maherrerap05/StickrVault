@@ -1,9 +1,13 @@
 package com.example.myapplication.presentation.catalog
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.myapplication.domain.model.AppUser
+import com.example.myapplication.domain.model.MovementType
 import com.example.myapplication.domain.model.Product
 import com.example.myapplication.domain.model.ProductCategory
+import com.example.myapplication.domain.model.StockMovement
 import com.example.myapplication.domain.usecase.AddProductUseCase
 import com.example.myapplication.domain.usecase.AddStockMovementUseCase
 import com.example.myapplication.domain.usecase.FilterProductsByCategoryUseCase
@@ -14,13 +18,12 @@ import com.example.myapplication.domain.usecase.UpdateProductUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
-import com.example.myapplication.domain.model.AppUser
-import com.example.myapplication.domain.model.MovementType
-import com.example.myapplication.domain.model.StockMovement
 
 class CatalogViewModel(
+    private val savedStateHandle: SavedStateHandle,
     private val getProductsUseCase: GetProductsUseCase,
     private val searchProductsUseCase: SearchProductsUseCase,
     private val filterProductsByCategoryUseCase: FilterProductsByCategoryUseCase,
@@ -28,19 +31,69 @@ class CatalogViewModel(
     private val getProductByNameAndCategoryUseCase: GetProductByNameAndCategoryUseCase,
     private val updateProductUseCase: UpdateProductUseCase,
     private val addStockMovementUseCase: AddStockMovementUseCase
-
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<CatalogUiState>(CatalogUiState.Loading)
     val uiState: StateFlow<CatalogUiState> = _uiState.asStateFlow()
 
+    private val _addProductDraft = MutableStateFlow(restoreDraft())
+    val addProductDraft: StateFlow<AddProductDraft> = _addProductDraft.asStateFlow()
+
+    private val _isAddProductDialogVisible = MutableStateFlow(
+        savedStateHandle.get<Boolean>(KEY_DIALOG_VISIBLE) ?: false
+    )
+    val isAddProductDialogVisible: StateFlow<Boolean> = _isAddProductDialogVisible.asStateFlow()
+
+    private val _catalogProducts = MutableStateFlow<List<Product>>(emptyList())
+    val catalogProducts: StateFlow<List<Product>> = _catalogProducts.asStateFlow()
+
     init { loadProducts() }
+
+    fun openAddProductDialog() {
+        _isAddProductDialogVisible.value = true
+        savedStateHandle[KEY_DIALOG_VISIBLE] = true
+    }
+
+    fun dismissAddProductDialog() {
+        _isAddProductDialogVisible.value = false
+        savedStateHandle[KEY_DIALOG_VISIBLE] = false
+    }
+
+    fun cancelAddProductDialog() {
+        clearAddProductDraft()
+        dismissAddProductDialog()
+    }
+
+    fun updateAddProductDraft(transform: (AddProductDraft) -> AddProductDraft) {
+        _addProductDraft.update { current ->
+            val updated = transform(current)
+            persistDraft(updated)
+            updated
+        }
+    }
+
+    fun verifyAddProductDraft() {
+        viewModelScope.launch {
+            val draft = _addProductDraft.value
+            val existing = getProductByNameAndCategoryUseCase(draft.name.trim(), draft.category)
+            updateAddProductDraft {
+                it.copy(
+                    wasVerified = true,
+                    existingProductId = existing?.id,
+                    stock = "",
+                    minStock = "15",
+                    ocrId = ""
+                )
+            }
+        }
+    }
 
     fun loadProducts() {
         viewModelScope.launch {
             _uiState.value = CatalogUiState.Loading
             try {
                 val products = getProductsUseCase()
+                updateCatalogProducts(products)
                 _uiState.value = if (products.isEmpty()) CatalogUiState.Empty
                 else CatalogUiState.Success(products = products)
             } catch (e: Exception) {
@@ -54,6 +107,7 @@ class CatalogViewModel(
             _uiState.value = CatalogUiState.Loading
             try {
                 val products = searchProductsUseCase(query)
+                updateCatalogProducts(products)
                 _uiState.value = if (products.isEmpty()) CatalogUiState.Empty
                 else CatalogUiState.Success(products = products, searchQuery = query)
             } catch (e: Exception) {
@@ -67,6 +121,7 @@ class CatalogViewModel(
             _uiState.value = CatalogUiState.Loading
             try {
                 val products = filterProductsByCategoryUseCase(category)
+                updateCatalogProducts(products)
                 _uiState.value = if (products.isEmpty()) CatalogUiState.Empty
                 else CatalogUiState.Success(products = products, activeFilter = category)
             } catch (e: Exception) {
@@ -74,58 +129,6 @@ class CatalogViewModel(
             }
         }
     }
-
-    fun addProduct(
-        name: String,
-        category: ProductCategory,
-        currentStock: Int,
-        minimumStock: Int,
-        ocrIdentifier: String?
-    ) {
-        viewModelScope.launch {
-            _uiState.value = CatalogUiState.Loading
-
-            try {
-                val product = Product(
-                    id = UUID.randomUUID().toString(),
-                    name = name.trim(),
-                    category = category,
-                    description = "Producto registrado en bodega",
-                    currentStock = currentStock,
-                    minimumStock = minimumStock,
-                    imageUrl = null,
-                    ocrIdentifier = ocrIdentifier?.ifBlank { null },
-                    lastUpdated = System.currentTimeMillis(),
-                    isSynced = false
-                )
-
-                val savedProduct = addProductUseCase(product)
-
-                if (savedProduct != null) {
-                    val products = getProductsUseCase()
-                    val pending = products.count { !it.isSynced }
-
-                    _uiState.value = CatalogUiState.Success(
-                        products = products,
-                        isOffline = !savedProduct.isSynced,
-                        pendingSyncCount = pending,
-                        message = if (!savedProduct.isSynced)
-                            "Modo offline: producto guardado localmente."
-                        else
-                            "Producto sincronizado correctamente."
-                    )
-                } else {
-                    _uiState.value = CatalogUiState.Error("No se pudo agregar el producto.")
-                }
-
-            } catch (e: Exception) {
-                _uiState.value = CatalogUiState.Error(
-                    e.message ?: "Error al agregar producto"
-                )
-            }
-        }
-    }
-
 
     fun saveManualProduct(
         name: String,
@@ -142,9 +145,7 @@ class CatalogViewModel(
                 val cleanName = name.trim()
                 val existingProduct = getProductByNameAndCategoryUseCase(cleanName, category)
 
-                val savedProduct: Product?
-
-                if (existingProduct != null) {
+                val savedProduct = if (existingProduct != null) {
                     val newStock = existingProduct.currentStock + stockValue
 
                     if (newStock < 0) {
@@ -160,7 +161,7 @@ class CatalogViewModel(
                         isSynced = false
                     )
 
-                    savedProduct = updateProductUseCase(updatedProduct)
+                    val updated = updateProductUseCase(updatedProduct)
 
                     addStockMovementUseCase(
                         StockMovement(
@@ -175,8 +176,9 @@ class CatalogViewModel(
                         )
                     )
 
+                    updated
                 } else {
-                    val newProduct = Product(
+                    val newProduct = com.example.myapplication.domain.model.Product(
                         id = UUID.randomUUID().toString(),
                         name = cleanName,
                         category = category,
@@ -189,9 +191,9 @@ class CatalogViewModel(
                         isSynced = false
                     )
 
-                    savedProduct = addProductUseCase(newProduct)
+                    val created = addProductUseCase(newProduct)
 
-                    savedProduct?.let {
+                    created?.let {
                         addStockMovementUseCase(
                             StockMovement(
                                 id = UUID.randomUUID().toString(),
@@ -205,12 +207,18 @@ class CatalogViewModel(
                             )
                         )
                     }
+
+                    created
                 }
 
                 if (savedProduct != null) {
                     val products = getProductsUseCase()
                     val pending = products.count { !it.isSynced }
 
+                    clearAddProductDraft()
+                    dismissAddProductDialog()
+
+                    updateCatalogProducts(products)
                     _uiState.value = CatalogUiState.Success(
                         products = products,
                         isOffline = pending > 0,
@@ -223,12 +231,61 @@ class CatalogViewModel(
                 } else {
                     _uiState.value = CatalogUiState.Error("No se pudo guardar el producto.")
                 }
-
             } catch (e: Exception) {
                 _uiState.value = CatalogUiState.Error(
                     e.message ?: "Error al guardar producto"
                 )
             }
         }
+    }
+
+    private fun updateCatalogProducts(products: List<Product>) {
+        if (products.isNotEmpty()) {
+            _catalogProducts.value = products
+        }
+    }
+
+    private fun clearAddProductDraft() {
+        val empty = AddProductDraft()
+        _addProductDraft.value = empty
+        persistDraft(empty)
+    }
+
+    private fun restoreDraft(): AddProductDraft {
+        val categoryName = savedStateHandle.get<String>(KEY_CATEGORY)
+        val category = categoryName?.let { name ->
+            runCatching { ProductCategory.valueOf(name) }.getOrNull()
+        } ?: ProductCategory.STICKER_INDIVIDUAL
+
+        return AddProductDraft(
+            name = savedStateHandle.get<String>(KEY_NAME).orEmpty(),
+            category = category,
+            stock = savedStateHandle.get<String>(KEY_STOCK).orEmpty(),
+            minStock = savedStateHandle.get<String>(KEY_MIN_STOCK) ?: "15",
+            ocrId = savedStateHandle.get<String>(KEY_OCR_ID).orEmpty(),
+            wasVerified = savedStateHandle.get<Boolean>(KEY_WAS_VERIFIED) ?: false,
+            existingProductId = savedStateHandle.get<String>(KEY_EXISTING_PRODUCT_ID)
+        )
+    }
+
+    private fun persistDraft(draft: AddProductDraft) {
+        savedStateHandle[KEY_NAME] = draft.name
+        savedStateHandle[KEY_CATEGORY] = draft.category.name
+        savedStateHandle[KEY_STOCK] = draft.stock
+        savedStateHandle[KEY_MIN_STOCK] = draft.minStock
+        savedStateHandle[KEY_OCR_ID] = draft.ocrId
+        savedStateHandle[KEY_WAS_VERIFIED] = draft.wasVerified
+        savedStateHandle[KEY_EXISTING_PRODUCT_ID] = draft.existingProductId
+    }
+
+    companion object {
+        private const val KEY_DIALOG_VISIBLE = "add_product_dialog_visible"
+        private const val KEY_NAME = "add_product_name"
+        private const val KEY_CATEGORY = "add_product_category"
+        private const val KEY_STOCK = "add_product_stock"
+        private const val KEY_MIN_STOCK = "add_product_min_stock"
+        private const val KEY_OCR_ID = "add_product_ocr_id"
+        private const val KEY_WAS_VERIFIED = "add_product_was_verified"
+        private const val KEY_EXISTING_PRODUCT_ID = "add_product_existing_id"
     }
 }

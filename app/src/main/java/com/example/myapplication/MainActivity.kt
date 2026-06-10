@@ -12,6 +12,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.myapplication.data.local.database.AppDatabase
+import com.example.myapplication.data.local.session.SessionPreferences
 import com.example.myapplication.data.remote.RetrofitClient
 import com.example.myapplication.data.repository.*
 import com.example.myapplication.domain.usecase.*
@@ -41,13 +42,18 @@ class MainActivity : ComponentActivity() {
 
         val productRepository       = ProductRepositoryImpl(RetrofitClient.apiService, productDao)
         val stockMovementRepository = StockMovementRepositoryImpl(RetrofitClient.apiService, stockMovementDao)
-        val authRepository = AuthRepositoryImpl(RetrofitClient.apiService, appUserDao)
+        val sessionPreferences      = SessionPreferences(applicationContext)
+        val authRepository = AuthRepositoryImpl(
+            RetrofitClient.apiService,
+            appUserDao,
+            sessionPreferences
+        )
 
         val getProductsUseCase       = GetProductsUseCase(productRepository)
         val getStockMovementsUseCase = GetStockMovementsUseCase(stockMovementRepository)
         val getUsersUseCase          = GetUsersUseCase(authRepository)
 
-        val authFactory    = AuthViewModelFactory(LoginUseCase(authRepository))
+        val authFactory    = AuthViewModelFactory(LoginUseCase(authRepository), authRepository)
         val homeFactory    = HomeViewModelFactory(
             getProductsUseCase       = getProductsUseCase,
             getStockMovementsUseCase = getStockMovementsUseCase,

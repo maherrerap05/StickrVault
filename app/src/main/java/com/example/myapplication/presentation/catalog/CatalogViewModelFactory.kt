@@ -2,6 +2,8 @@ package com.example.myapplication.presentation.catalog
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.viewmodel.CreationExtras
 import com.example.myapplication.domain.usecase.AddProductUseCase
 import com.example.myapplication.domain.usecase.AddStockMovementUseCase
 import com.example.myapplication.domain.usecase.FilterProductsByCategoryUseCase
@@ -20,10 +22,11 @@ class CatalogViewModelFactory(
     private val addStockMovementUseCase: AddStockMovementUseCase
 ) : ViewModelProvider.Factory {
 
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
         if (modelClass.isAssignableFrom(CatalogViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
             return CatalogViewModel(
+                savedStateHandle = extras.createSavedStateHandle(),
                 getProductsUseCase = getProductsUseCase,
                 searchProductsUseCase = searchProductsUseCase,
                 filterProductsByCategoryUseCase = filterProductsByCategoryUseCase,
@@ -35,5 +38,10 @@ class CatalogViewModelFactory(
         }
 
         throw IllegalArgumentException("Unknown ViewModel: ${modelClass.name}")
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        return create(modelClass, CreationExtras.Empty)
     }
 }

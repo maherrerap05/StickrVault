@@ -1,8 +1,13 @@
 package com.example.myapplication.presentation.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -26,9 +31,22 @@ fun StickrVaultNavHost(
     scannerViewModel: ScannerViewModel,
     reportsViewModel: ReportsViewModel
 ) {
+    val isSessionReady by authViewModel.isSessionReady.collectAsState()
     val currentUser by authViewModel.currentUser.collectAsState()
 
-    NavHost(navController = navController, startDestination = Routes.LOGIN) {
+    if (!isSessionReady) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    val startDestination = if (currentUser != null) Routes.HOME else Routes.LOGIN
+
+    NavHost(navController = navController, startDestination = startDestination) {
 
         composable(Routes.LOGIN) {
             LoginScreen(

@@ -50,6 +50,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-savedstate:2.8.7")
     implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("androidx.compose.material:material-icons-extended")
 
@@ -61,6 +62,9 @@ dependencies {
 
     // Corrutinas
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+
+    // DataStore (sesión offline)
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // Room (S13-14)
     implementation("androidx.room:room-runtime:2.7.0")
