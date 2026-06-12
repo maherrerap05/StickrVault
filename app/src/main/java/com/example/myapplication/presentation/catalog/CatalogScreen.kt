@@ -11,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -444,10 +443,23 @@ fun AddProductDialog(
 @Composable
 fun ProductCard(product: Product, canEdit: Boolean = true) {
     val isCritical = product.currentStock <= product.minimumStock
-    val stockColor = if (isCritical) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
+
+    // Se elimina de color hardcoded: se reemplaza Color(0xFF2E7D32) color del tema (MaterialTheme.colorScheme.tertiary)
+    val stockColor = if (isCritical) MaterialTheme.colorScheme.error
+    else MaterialTheme.colorScheme.tertiary
+
     val stockLabel = if (isCritical) "● Crítico" else "● Normal"
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    // Se agregan colors, shape y padding perimetral al Card
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp), // Se aplica el espaciado perimetral obligatorio (Modifier.padding)
+        shape = MaterialTheme.shapes.medium, // Se aplica los Bordes redondeados dinámicos del tema
+        colors = CardDefaults.cardColors( // Se aplica el color de fondo dinámicamente
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
         Row(
             modifier = Modifier
                 .padding(16.dp)
