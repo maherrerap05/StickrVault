@@ -12,5 +12,6 @@ data class StockMovementEntity(
     val userId: String,
     val userName: String,
     val timestamp: Long,
-    val isSynced: Boolean
+    val isSynced: Boolean,
+    val productName: String? = null
 )

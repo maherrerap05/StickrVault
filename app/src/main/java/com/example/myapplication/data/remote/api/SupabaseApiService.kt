@@ -10,6 +10,9 @@ interface SupabaseApiService {
     @GET("products")
     suspend fun getProducts(): List<ProductDto>
 
+    @GET("products")
+    suspend fun getProductById(@Query("id") idFilter: String): List<ProductDto>
+
     @Headers("Content-Type: application/json", "Prefer: return=representation")
     @POST("products")
     suspend fun addProduct(@Body product: ProductDto): List<ProductDto>

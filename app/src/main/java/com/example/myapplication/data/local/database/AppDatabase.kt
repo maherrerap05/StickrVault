@@ -14,7 +14,7 @@ import com.example.myapplication.data.local.dao.AppUserDao
 
 @Database(
     entities = [ProductEntity::class, StockMovementEntity::class, AppUserEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

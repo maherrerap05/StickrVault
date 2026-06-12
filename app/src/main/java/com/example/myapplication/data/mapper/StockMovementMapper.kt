@@ -35,7 +35,8 @@ fun StockMovementEntity.toDomain(): StockMovement = StockMovement(
     userId = userId,
     userName = userName,
     timestamp = timestamp,
-    isSynced = isSynced
+    isSynced = isSynced,
+    productName = productName
 )
 
 fun StockMovement.toEntity(): StockMovementEntity = StockMovementEntity(
@@ -46,5 +47,6 @@ fun StockMovement.toEntity(): StockMovementEntity = StockMovementEntity(
     userId = userId,
     userName = userName,
     timestamp = timestamp,
-    isSynced = isSynced
+    isSynced = isSynced,
+    productName = productName
 )

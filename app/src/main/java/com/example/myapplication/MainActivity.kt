@@ -42,7 +42,11 @@ class MainActivity : ComponentActivity() {
         val appUserDao = db.appUserDao()
 
         val productRepository       = ProductRepositoryImpl(RetrofitClient.apiService, productDao)
-        val stockMovementRepository = StockMovementRepositoryImpl(RetrofitClient.apiService, stockMovementDao)
+        val stockMovementRepository = StockMovementRepositoryImpl(
+            RetrofitClient.apiService,
+            stockMovementDao,
+            productDao
+        )
         val sessionPreferences      = SessionPreferences(applicationContext)
         val authRepository = AuthRepositoryImpl(
             RetrofitClient.apiService,

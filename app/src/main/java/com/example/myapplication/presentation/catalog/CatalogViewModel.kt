@@ -172,7 +172,8 @@ class CatalogViewModel(
                             userId = currentUser?.id ?: "offline-user",
                             userName = currentUser?.name ?: "Usuario offline",
                             timestamp = System.currentTimeMillis(),
-                            isSynced = false
+                            isSynced = false,
+                            productName = existingProduct.name
                         )
                     )
 
@@ -203,7 +204,8 @@ class CatalogViewModel(
                                 userId = currentUser?.id ?: "offline-user",
                                 userName = currentUser?.name ?: "Usuario offline",
                                 timestamp = System.currentTimeMillis(),
-                                isSynced = false
+                                isSynced = false,
+                                productName = cleanName
                             )
                         )
                     }

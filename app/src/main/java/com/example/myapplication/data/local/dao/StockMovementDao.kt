@@ -14,7 +14,7 @@ interface StockMovementDao {
 
     @Query("""
         SELECT m.id, m.productId, m.movementType, m.quantity, m.userId, m.userName,
-               m.timestamp, m.isSynced, p.name AS productName
+               m.timestamp, m.isSynced, COALESCE(m.productName, p.name) AS productName
         FROM stock_movements m
         LEFT JOIN products p ON m.productId = p.id
         ORDER BY m.timestamp DESC
