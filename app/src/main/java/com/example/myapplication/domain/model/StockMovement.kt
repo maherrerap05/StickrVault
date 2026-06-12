@@ -8,5 +8,6 @@ data class StockMovement(
     val userId: String,
     val userName: String,
     val timestamp: Long,
-    val isSynced: Boolean = false
+    val isSynced: Boolean = false,
+    val productName: String? = null
 )

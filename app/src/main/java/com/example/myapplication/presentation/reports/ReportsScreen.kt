@@ -20,6 +20,8 @@ import com.example.myapplication.presentation.home.formatRelativeTime
 fun ReportsScreen(viewModel: ReportsViewModel) {
     val uiState by viewModel.uiState.collectAsState()
 
+    LaunchedEffect(Unit) { viewModel.loadReports() }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -72,9 +74,7 @@ fun ReportsScreen(viewModel: ReportsViewModel) {
                 )
             }
         } else {
-            items(uiState.recentMovements) { movement ->
-                MovementCard(movement)
-            }
+            items(uiState.recentMovements) { MovementCard(it) }
         }
     }
 }
@@ -103,7 +103,11 @@ fun MovementCard(movement: StockMovement) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(movement.productId, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(
+                    movement.productName ?: movement.productId,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
                 Text(
                     text = "${movement.userName} · ${formatRelativeTime(movement.timestamp)}",
                     style = MaterialTheme.typography.bodySmall,

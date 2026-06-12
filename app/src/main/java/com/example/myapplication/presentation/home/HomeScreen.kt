@@ -31,6 +31,8 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showUsersDialog by remember { mutableStateOf(false) }
 
+    LaunchedEffect(Unit) { viewModel.loadHomeSummary() }
+
     if (showUsersDialog) {
         UsersDialog(
             users = uiState.users,
@@ -210,7 +212,10 @@ fun RecentMovementItem(movement: StockMovement) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(movement.productId, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    movement.productName ?: movement.productId,
+                    style = MaterialTheme.typography.titleSmall
+                )
                 Text("${movement.userName} · ${formatRelativeTime(movement.timestamp)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)

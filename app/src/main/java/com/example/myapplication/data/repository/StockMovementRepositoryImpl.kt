@@ -2,6 +2,7 @@ package com.example.myapplication.data.repository
 
 import com.example.myapplication.data.local.dao.StockMovementDao
 import com.example.myapplication.data.local.entity.StockMovementEntity
+import com.example.myapplication.data.local.model.StockMovementWithProductName
 import com.example.myapplication.data.remote.api.SupabaseApiService
 import com.example.myapplication.data.remote.dto.StockMovementDto
 import com.example.myapplication.domain.model.MovementType
@@ -20,10 +21,8 @@ class StockMovementRepositoryImpl(
             try {
                 val remote = apiService.getStockMovements(limit = limit).map { it.toModel() }
                 dao.upsertMovements(remote.map { it.toEntity() })
-                remote
-            } catch (e: Exception) {
-                dao.getRecentMovements(limit).map { it.toModel() }
-            }
+            } catch (_: Exception) { }
+            dao.getRecentMovementsWithProductName(limit).map { it.toModel() }
         }
 
     override suspend fun addMovement(movement: StockMovement): StockMovement? =
@@ -58,6 +57,19 @@ class StockMovementRepositoryImpl(
         userName     = userName,
         timestamp    = timestamp,
         isSynced     = isSynced
+    )
+
+    private fun StockMovementWithProductName.toModel() = StockMovement(
+        id           = id,
+        productId    = productId,
+        movementType = runCatching { MovementType.valueOf(movementType) }
+            .getOrDefault(MovementType.ADJUSTMENT),
+        quantity     = quantity,
+        userId       = userId,
+        userName     = userName,
+        timestamp    = timestamp,
+        isSynced     = isSynced,
+        productName  = productName
     )
 
     private fun StockMovement.toEntity() = StockMovementEntity(
