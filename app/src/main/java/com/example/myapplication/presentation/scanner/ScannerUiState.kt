@@ -4,9 +4,11 @@ import com.example.myapplication.domain.model.Product
 
 sealed class ScannerUiState {
     object Idle : ScannerUiState()
-    object Scanning : ScannerUiState()
-    data class ProductDetected(val identifier: String) : ScannerUiState()
-    data class ProductFound(val product: Product) : ScannerUiState()
-    data class ProductNotFound(val identifier: String) : ScannerUiState()
+    object CameraReady : ScannerUiState()
+    object ProcessingCapture : ScannerUiState()
+    data class Searching(val code: String) : ScannerUiState()
+    data class ProductFound(val product: Product, val code: String) : ScannerUiState()
+    data class ProductNotFound(val code: String) : ScannerUiState()
+    data class CodeNotRecognized(val rawText: String) : ScannerUiState()
     data class Error(val message: String) : ScannerUiState()
 }

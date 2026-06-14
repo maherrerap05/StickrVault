@@ -83,7 +83,13 @@ fun StickrVaultNavHost(
         }
 
         composable<Routes.Scanner> {
-            ScannerScreen(viewModel = scannerViewModel)
+            ScannerScreen(
+                viewModel = scannerViewModel,
+                onAddProduct = { code ->
+                    catalogViewModel.openAddProductFromScan(code)
+                    navController.navigate(Routes.Catalog)
+                }
+            )
         }
 
         composable<Routes.Reports> {

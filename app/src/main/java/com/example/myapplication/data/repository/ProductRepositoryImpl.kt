@@ -75,10 +75,14 @@ class ProductRepositoryImpl(
 
     override suspend fun getProductByOcrIdentifier(identifier: String): Product? =
         withContext(Dispatchers.IO) {
-            productDao.getProductByOcrIdentifier(identifier)?.toDomain()
-                ?: runCatching {
-                    getProducts().find { it.ocrIdentifier.equals(identifier, ignoreCase = true) }
-                }.getOrNull()
+            val normalized = identifier.trim()
+            if (normalized.isBlank()) return@withContext null
+
+            productDao.getProductByOcrIdentifier(normalized)?.toDomain()
+                ?: productDao.getAllProducts().map { it.toDomain() }.firstOrNull { product ->
+                    product.ocrIdentifier?.equals(normalized, ignoreCase = true) == true ||
+                        product.name.contains(normalized, ignoreCase = true)
+                }
         }
 
     override suspend fun addProduct(product: Product): Product? = withContext(Dispatchers.IO) {

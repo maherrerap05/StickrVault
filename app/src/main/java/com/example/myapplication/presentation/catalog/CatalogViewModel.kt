@@ -54,6 +54,16 @@ class CatalogViewModel(
         savedStateHandle[KEY_DIALOG_VISIBLE] = true
     }
 
+    fun openAddProductFromScan(ocrCode: String) {
+        updateAddProductDraft {
+            AddProductDraft(
+                ocrId = ocrCode.trim(),
+                wasVerified = false
+            )
+        }
+        openAddProductDialog()
+    }
+
     fun dismissAddProductDialog() {
         _isAddProductDialogVisible.value = false
         savedStateHandle[KEY_DIALOG_VISIBLE] = false
@@ -81,8 +91,7 @@ class CatalogViewModel(
                     wasVerified = true,
                     existingProductId = existing?.id,
                     stock = "",
-                    minStock = "15",
-                    ocrId = ""
+                    minStock = "15"
                 )
             }
         }

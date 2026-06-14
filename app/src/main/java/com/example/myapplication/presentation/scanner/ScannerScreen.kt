@@ -12,6 +12,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.*
@@ -31,14 +33,18 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import java.util.concurrent.Executors
 
 @Composable
-fun ScannerScreen(viewModel: ScannerViewModel) {
+fun ScannerScreen(
+    viewModel: ScannerViewModel,
+    onAddProduct: (String) -> Unit = {}
+) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val cameraController = remember { ScannerCameraController() }
 
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
-                    == PackageManager.PERMISSION_GRANTED
+                == PackageManager.PERMISSION_GRANTED
         )
     }
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -49,15 +55,17 @@ fun ScannerScreen(viewModel: ScannerViewModel) {
         if (!hasCameraPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
-    val isScanning = uiState is ScannerUiState.Scanning
+    val isCameraActive = uiState is ScannerUiState.CameraReady ||
+        uiState is ScannerUiState.ProcessingCapture
 
     Box(modifier = Modifier.fillMaxSize()) {
-
-        // Capa de cámara
-        if (hasCameraPermission && isScanning) {
+        if (hasCameraPermission && isCameraActive) {
             CameraPreview(
                 modifier = Modifier.fillMaxSize(),
-                onTextDetected = { viewModel.onTextDetected(it) }
+                controller = cameraController,
+                onCaptureResult = { raw, code ->
+                    viewModel.onCaptureResult(raw, code)
+                }
             )
         } else {
             Box(
@@ -68,67 +76,53 @@ fun ScannerScreen(viewModel: ScannerViewModel) {
             ) {
                 Text(
                     text = if (!hasCameraPermission) "Permiso de cámara requerido"
-                    else "Presiona 'Iniciar escaneo'",
+                    else "Presiona 'Abrir cámara' para escanear",
                     color = Color.White
                 )
             }
         }
 
-        // Overlay UI
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // TopBar
-            Text(
-                text = "Escáner OCR",
-                style = MaterialTheme.typography.headlineSmall,
-                color = Color.White,
-                modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Escáner OCR",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color.White,
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+                if (isCameraActive) {
+                    Text(
+                        text = "Alinea el código en el recuadro y pulsa Capturar",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White,
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+            }
 
-            // Marco guía (solo al escanear)
-            if (isScanning) {
+            if (isCameraActive) {
                 Box(
                     modifier = Modifier
-                        .size(200.dp)
-                        .align(Alignment.CenterHorizontally)
-                        .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                        .align(Alignment.End)
+                        .size(width = 140.dp, height = 72.dp)
+                        .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp))
                 )
             } else {
                 Spacer(modifier = Modifier.weight(1f))
             }
 
-            // Controles inferiores
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 when (val s = uiState) {
-                    is ScannerUiState.ProductFound -> ResultCard(
-                        icon = {
-                            Icon(
-                                Icons.Default.CheckCircle, null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        title = s.product.name,
-                        subtitle = "Stock: ${s.product.currentStock} · ${s.product.category.name}",
-                        onDismiss = { viewModel.reset() }
-                    )
-                    is ScannerUiState.ProductNotFound -> ResultCard(
-                        icon = {
-                            Icon(
-                                Icons.Default.ErrorOutline, null,
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        },
-                        title = "Producto no encontrado",
-                        subtitle = "Identificador: ${s.identifier}",
-                        onDismiss = { viewModel.reset() }
-                    )
-                    is ScannerUiState.ProductDetected -> {
+                    is ScannerUiState.ProcessingCapture -> {
                         Row(
                             modifier = Modifier
                                 .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(10.dp))
@@ -141,9 +135,83 @@ fun ScannerScreen(viewModel: ScannerViewModel) {
                                 strokeWidth = 2.dp,
                                 color = Color.White
                             )
-                            Text("Buscando: ${s.identifier}", color = Color.White)
+                            Text("Leyendo código...", color = Color.White)
                         }
                     }
+
+                    is ScannerUiState.ProductFound -> ResultCard(
+                        icon = {
+                            Icon(Icons.Default.CheckCircle, null, tint = MaterialTheme.colorScheme.primary)
+                        },
+                        title = s.product.name,
+                        subtitle = "Código: ${s.code} · Stock: ${s.product.currentStock}",
+                        onDismiss = { viewModel.reset() }
+                    )
+
+                    is ScannerUiState.ProductNotFound -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ResultCard(
+                            icon = {
+                                Icon(Icons.Default.ErrorOutline, null, tint = MaterialTheme.colorScheme.error)
+                            },
+                            title = "Producto no encontrado",
+                            subtitle = "Código: ${s.code}",
+                            onDismiss = { viewModel.reset() }
+                        )
+                        Button(
+                            onClick = {
+                                onAddProduct(s.code)
+                                viewModel.reset()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Agregar producto")
+                        }
+                        OutlinedButton(
+                            onClick = { viewModel.backToCamera() },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                        ) {
+                            Text("Capturar otro")
+                        }
+                    }
+
+                    is ScannerUiState.CodeNotRecognized -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ResultCard(
+                            icon = {
+                                Icon(Icons.Default.ErrorOutline, null, tint = MaterialTheme.colorScheme.error)
+                            },
+                            title = "No se detectó el código",
+                            subtitle = "Intenta de nuevo con mejor luz y el código dentro del recuadro",
+                            onDismiss = { viewModel.backToCamera() }
+                        )
+                        OutlinedButton(
+                            onClick = { viewModel.backToCamera() },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                        ) {
+                            Text("Capturar otro")
+                        }
+                    }
+
+                    is ScannerUiState.Searching -> {
+                        Row(
+                            modifier = Modifier
+                                .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(10.dp))
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = Color.White
+                            )
+                            Text("Buscando: ${s.code}", color = Color.White, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+
                     is ScannerUiState.Error -> Text(
                         text = s.message,
                         color = MaterialTheme.colorScheme.error,
@@ -151,21 +219,45 @@ fun ScannerScreen(viewModel: ScannerViewModel) {
                             .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
                             .padding(10.dp)
                     )
+
                     else -> {}
                 }
 
-                if (!isScanning) {
-                    Button(
-                        onClick = { viewModel.startScanning() },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = hasCameraPermission
-                    ) { Text("Iniciar escaneo") }
-                } else {
-                    OutlinedButton(
-                        onClick = { viewModel.stopScanning() },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
-                    ) { Text("Detener") }
+                when {
+                    isCameraActive -> {
+                        Button(
+                            onClick = {
+                                viewModel.onCaptureRequested()
+                                cameraController.requestCapture()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = uiState !is ScannerUiState.ProcessingCapture
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Capturar código")
+                        }
+                        OutlinedButton(
+                            onClick = { viewModel.closeCamera() },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                        ) {
+                            Text("Cerrar cámara")
+                        }
+                    }
+
+                    uiState !is ScannerUiState.Searching &&
+                        uiState !is ScannerUiState.ProductFound &&
+                        uiState !is ScannerUiState.ProductNotFound &&
+                        uiState !is ScannerUiState.CodeNotRecognized -> {
+                        Button(
+                            onClick = { viewModel.openCamera() },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = hasCameraPermission
+                        ) {
+                            Text("Abrir cámara")
+                        }
+                    }
                 }
             }
         }
@@ -203,7 +295,8 @@ private fun ResultCard(
 @Composable
 private fun CameraPreview(
     modifier: Modifier = Modifier,
-    onTextDetected: (String) -> Unit
+    controller: ScannerCameraController,
+    onCaptureResult: (rawText: String, extractedCode: String?) -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -217,6 +310,8 @@ private fun CameraPreview(
         factory = { ctx ->
             val previewView = PreviewView(ctx)
 
+            val mainExecutor = ContextCompat.getMainExecutor(ctx)
+
             ProcessCameraProvider.getInstance(ctx).also { future ->
                 future.addListener({
                     val cameraProvider = future.get()
@@ -229,6 +324,11 @@ private fun CameraPreview(
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .build().apply {
                             setAnalyzer(executor) { imageProxy ->
+                                if (!controller.consumeCaptureRequest()) {
+                                    imageProxy.close()
+                                    return@setAnalyzer
+                                }
+
                                 val mediaImage = imageProxy.image
                                 if (mediaImage != null) {
                                     val image = InputImage.fromMediaImage(
@@ -237,11 +337,28 @@ private fun CameraPreview(
                                     )
                                     recognizer.process(image)
                                         .addOnSuccessListener { result ->
-                                            val text = result.text.trim()
-                                            if (text.isNotBlank()) onTextDetected(text)
+                                            val raw = result.text.trim()
+                                            val code = if (raw.isNotBlank()) {
+                                                OcrCodeExtractor.extractFromMlKit(
+                                                    text = result,
+                                                    imageWidth = imageProxy.width,
+                                                    imageHeight = imageProxy.height
+                                                )
+                                            } else {
+                                                null
+                                            }
+                                            mainExecutor.execute {
+                                                onCaptureResult(raw, code)
+                                            }
+                                        }
+                                        .addOnFailureListener {
+                                            mainExecutor.execute {
+                                                onCaptureResult("", null)
+                                            }
                                         }
                                         .addOnCompleteListener { imageProxy.close() }
                                 } else {
+                                    onCaptureResult("", null)
                                     imageProxy.close()
                                 }
                             }

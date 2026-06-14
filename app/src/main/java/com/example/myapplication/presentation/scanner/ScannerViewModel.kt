@@ -15,35 +15,56 @@ class ScannerViewModel(
     private val _uiState = MutableStateFlow<ScannerUiState>(ScannerUiState.Idle)
     val uiState: StateFlow<ScannerUiState> = _uiState.asStateFlow()
 
-    private var lastScannedText = ""
+    private var lastScannedCode = ""
 
-    fun onTextDetected(rawText: String) {
-        val identifier = rawText.trim()
-        if (identifier.isBlank() || identifier == lastScannedText) return
-        lastScannedText = identifier
-        _uiState.value = ScannerUiState.ProductDetected(identifier)
+    fun openCamera() {
+        lastScannedCode = ""
+        _uiState.value = ScannerUiState.CameraReady
+    }
+
+    fun onCaptureRequested() {
+        if (_uiState.value is ScannerUiState.CameraReady) {
+            _uiState.value = ScannerUiState.ProcessingCapture
+        }
+    }
+
+    fun onCaptureResult(rawText: String, extractedCode: String?) {
+        val code = extractedCode?.trim().orEmpty()
+        if (code.isBlank()) {
+            _uiState.value = ScannerUiState.CodeNotRecognized(rawText.take(120))
+            return
+        }
+        if (code == lastScannedCode) {
+            _uiState.value = ScannerUiState.CameraReady
+            return
+        }
+
+        lastScannedCode = code
+        _uiState.value = ScannerUiState.Searching(code)
         viewModelScope.launch {
             try {
-                val product = getProductByOcrIdentifier(identifier)
-                _uiState.value = if (product != null)
-                    ScannerUiState.ProductFound(product)
-                else
-                    ScannerUiState.ProductNotFound(identifier)
+                val product = getProductByOcrIdentifier(code)
+                _uiState.value = if (product != null) {
+                    ScannerUiState.ProductFound(product, code)
+                } else {
+                    ScannerUiState.ProductNotFound(code)
+                }
             } catch (e: Exception) {
                 _uiState.value = ScannerUiState.Error(e.message ?: "Error al buscar producto")
             }
         }
     }
 
-    fun startScanning() {
-        lastScannedText = ""
-        _uiState.value = ScannerUiState.Scanning
+    fun backToCamera() {
+        _uiState.value = ScannerUiState.CameraReady
     }
 
-    fun stopScanning() { _uiState.value = ScannerUiState.Idle }
+    fun closeCamera() {
+        _uiState.value = ScannerUiState.Idle
+    }
 
     fun reset() {
-        lastScannedText = ""
+        lastScannedCode = ""
         _uiState.value = ScannerUiState.Idle
     }
 }
