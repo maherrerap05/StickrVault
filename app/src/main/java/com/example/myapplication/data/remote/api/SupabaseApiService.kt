@@ -8,7 +8,10 @@ import retrofit2.http.*
 interface SupabaseApiService {
 
     @GET("products")
-    suspend fun getProducts(): List<ProductDto>
+    suspend fun getProducts(
+        @Header("Range") range: String,
+        @Query("order") order: String = "id.asc"
+    ): List<ProductDto>
 
     @GET("products")
     suspend fun getProductById(@Query("id") idFilter: String): List<ProductDto>

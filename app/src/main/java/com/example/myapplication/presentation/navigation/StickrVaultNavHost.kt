@@ -21,6 +21,7 @@ import com.example.myapplication.presentation.reports.ReportsScreen
 import com.example.myapplication.presentation.reports.ReportsViewModel
 import com.example.myapplication.presentation.scanner.ScannerScreen
 import com.example.myapplication.presentation.scanner.ScannerViewModel
+import com.example.myapplication.domain.model.UserRole
 
 @Composable
 fun StickrVaultNavHost(
@@ -83,11 +84,32 @@ fun StickrVaultNavHost(
         }
 
         composable<Routes.Scanner> {
+            val canEditInventory = currentUser?.role == UserRole.WAREHOUSE_CHIEF ||
+                currentUser?.role == UserRole.WAREHOUSE_OPERATOR
+
             ScannerScreen(
                 viewModel = scannerViewModel,
+                canEditInventory = canEditInventory,
                 onAddProduct = { code ->
-                    catalogViewModel.openAddProductFromScan(code)
-                    navController.navigate(Routes.Catalog)
+                    if (canEditInventory) {
+                        catalogViewModel.openAddProductFromScan(code)
+                        navController.navigate(Routes.Catalog)
+                    }
+                },
+                onAddExistingProduct = { product ->
+                    if (canEditInventory) {
+                        catalogViewModel.saveManualProduct(
+                            name = product.name,
+                            category = product.category,
+                            stockValue = 1,
+                            minimumStock = product.minimumStock,
+                            ocrIdentifier = product.ocrIdentifier,
+                            currentUser = currentUser
+                        )
+                        navController.navigate(Routes.Catalog) {
+                            launchSingleTop = true
+                        }
+                    }
                 }
             )
         }

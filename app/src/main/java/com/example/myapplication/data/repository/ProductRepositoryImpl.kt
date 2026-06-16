@@ -22,7 +22,7 @@ class ProductRepositoryImpl(
         try {
             syncPendingProducts()
 
-            val remote = apiService.getProducts().map { it.toDomain().copy(isSynced = true) }
+            val remote = getAllRemoteProducts()
             productDao.upsertProducts(remote.map { it.toEntity() })
 
             val pendingLocal = productDao.getUnsyncedProducts().map { it.toDomain() }
@@ -190,4 +190,23 @@ class ProductRepositoryImpl(
         ocrIdentifier = ocrIdentifier,
         lastUpdated = System.currentTimeMillis(), isSynced = true
     )
+
+    private suspend fun getAllRemoteProducts(): List<Product> {
+        val products = mutableListOf<Product>()
+        var pageStart = 0
+
+        do {
+            val page = apiService.getProducts(
+                range = "$pageStart-${pageStart + PRODUCT_PAGE_SIZE - 1}"
+            )
+            products += page.map { it.toDomain().copy(isSynced = true) }
+            pageStart += PRODUCT_PAGE_SIZE
+        } while (page.size == PRODUCT_PAGE_SIZE)
+
+        return products
+    }
+
+    private companion object {
+        const val PRODUCT_PAGE_SIZE = 1_000
+    }
 }

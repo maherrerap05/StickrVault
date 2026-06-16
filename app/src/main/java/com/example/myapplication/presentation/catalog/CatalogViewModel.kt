@@ -8,6 +8,7 @@ import com.example.myapplication.domain.model.MovementType
 import com.example.myapplication.domain.model.Product
 import com.example.myapplication.domain.model.ProductCategory
 import com.example.myapplication.domain.model.StockMovement
+import com.example.myapplication.domain.model.UserRole
 import com.example.myapplication.domain.usecase.AddProductUseCase
 import com.example.myapplication.domain.usecase.AddStockMovementUseCase
 import com.example.myapplication.domain.usecase.FilterProductsByCategoryUseCase
@@ -147,6 +148,13 @@ class CatalogViewModel(
         ocrIdentifier: String?,
         currentUser: AppUser?
     ) {
+        if (currentUser?.role == UserRole.AUDITOR) {
+            _uiState.value = CatalogUiState.Error(
+                "El rol de auditor no tiene permiso para modificar el inventario."
+            )
+            return
+        }
+
         viewModelScope.launch {
             _uiState.value = CatalogUiState.Loading
 

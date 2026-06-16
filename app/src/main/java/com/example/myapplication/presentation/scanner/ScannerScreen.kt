@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import com.example.myapplication.domain.model.Product
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -35,7 +36,9 @@ import java.util.concurrent.Executors
 @Composable
 fun ScannerScreen(
     viewModel: ScannerViewModel,
-    onAddProduct: (String) -> Unit = {}
+    canEditInventory: Boolean = true,
+    onAddProduct: (String) -> Unit = {},
+    onAddExistingProduct: (Product) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -139,14 +142,54 @@ fun ScannerScreen(
                         }
                     }
 
-                    is ScannerUiState.ProductFound -> ResultCard(
-                        icon = {
-                            Icon(Icons.Default.CheckCircle, null, tint = MaterialTheme.colorScheme.primary)
-                        },
-                        title = s.product.name,
-                        subtitle = "Código: ${s.code} · Stock: ${s.product.currentStock}",
-                        onDismiss = { viewModel.reset() }
-                    )
+                    is ScannerUiState.ProductFound -> Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        ResultCard(
+                            icon = {
+                                Icon(
+                                    Icons.Default.CheckCircle,
+                                    null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            title = s.product.name,
+                            subtitle = "Código: ${s.code} · Stock actual: ${s.product.currentStock}",
+                            onDismiss = { viewModel.reset() }
+                        )
+                        if (canEditInventory) {
+                            Button(
+                                onClick = {
+                                    onAddExistingProduct(s.product)
+                                    viewModel.reset()
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Añadir 1 al inventario")
+                            }
+                        } else {
+                            Text(
+                                text = "Tu rol de auditor permite consultar el producto, pero no modificar el inventario.",
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier
+                                    .background(
+                                        Color.Black.copy(alpha = 0.6f),
+                                        RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(10.dp)
+                            )
+                        }
+                        OutlinedButton(
+                            onClick = { viewModel.backToCamera() },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                        ) {
+                            Text("No añadir y capturar otro")
+                        }
+                    }
 
                     is ScannerUiState.ProductNotFound -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         ResultCard(
@@ -157,16 +200,30 @@ fun ScannerScreen(
                             subtitle = "Código: ${s.code}",
                             onDismiss = { viewModel.reset() }
                         )
-                        Button(
-                            onClick = {
-                                onAddProduct(s.code)
-                                viewModel.reset()
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Agregar producto")
+                        if (canEditInventory) {
+                            Button(
+                                onClick = {
+                                    onAddProduct(s.code)
+                                    viewModel.reset()
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Agregar producto")
+                            }
+                        } else {
+                            Text(
+                                text = "Tu rol de auditor no permite registrar productos.",
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier
+                                    .background(
+                                        Color.Black.copy(alpha = 0.6f),
+                                        RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(10.dp)
+                            )
                         }
                         OutlinedButton(
                             onClick = { viewModel.backToCamera() },
