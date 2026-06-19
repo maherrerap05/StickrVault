@@ -1,0 +1,205 @@
+RESOLUCION DEL CASO 3
+
+Caso asignado:
+Intercepcion tolerante a fallos en movimientos de inventario usando Null Safety de Kotlin, toIntOrNull(), operador Elvis (?:), isError y supportingText.
+
+Archivos modificados:
+
+1. Ruta:
+app/src/main/java/com/example/myapplication/presentation/catalog/CatalogScreen.kt
+
+Fragmento antes del cambio:
+
+```kotlin
+onConfirm = { name, category, stock, minStock, ocrId ->
+    viewModel.saveManualProduct(
+        name = name,
+        category = category,
+        stockValue = stock,
+        minimumStock = minStock,
+        ocrIdentifier = ocrId,
+        currentUser = currentUser
+    )
+}
+```
+
+Fragmento despues del cambio:
+
+```kotlin
+onConfirm = { name, category, stock, minStock, ocrId ->
+    viewModel.saveManualProduct(
+        name = name,
+        category = category,
+        stockInput = stock,
+        minimumStockInput = minStock,
+        ocrIdentifier = ocrId,
+        currentUser = currentUser
+    )
+}
+```
+
+Fragmento antes del cambio:
+
+```kotlin
+OutlinedTextField(
+    value = stock,
+    onValueChange = { value -> onDraftChange { it.copy(stock = value) } },
+    label = { Text("Cantidad a modificar") },
+    placeholder = { Text("Ej: 10 o -5") },
+    modifier = Modifier.fillMaxWidth(),
+    singleLine = true,
+    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+)
+```
+
+Fragmento despues del cambio:
+
+```kotlin
+OutlinedTextField(
+    value = stock,
+    onValueChange = { value ->
+        attemptedSave = false
+        onDraftChange { it.copy(stock = value) }
+    },
+    label = { Text("Cantidad a modificar") },
+    placeholder = { Text("Ej: 10 o -5") },
+    modifier = Modifier.fillMaxWidth(),
+    singleLine = true,
+    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+    isError = isStockInputInvalid,
+    supportingText = {
+        if (isStockInputInvalid) {
+            Text(
+                text = "Cantidad inválida: Se registrará 0",
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+)
+```
+
+Fragmento antes del cambio:
+
+```kotlin
+Button(
+    onClick = {
+        onConfirm(
+            name,
+            category,
+            stockValue ?: 0,
+            minStockValue ?: existingProduct?.minimumStock ?: 0,
+            ocrId
+        )
+    },
+    enabled = isFormValid
+)
+```
+
+Fragmento despues del cambio:
+
+```kotlin
+Button(
+    onClick = {
+        attemptedSave = true
+        if (stockValue == null || !isFormValid) return@Button
+
+        onConfirm(
+            name,
+            category,
+            stock,
+            minStock,
+            ocrId
+        )
+    },
+    enabled = isExistingProduct || isNewProduct
+)
+```
+
+2. Ruta:
+app/src/main/java/com/example/myapplication/presentation/catalog/CatalogViewModel.kt
+
+Fragmento antes del cambio:
+
+```kotlin
+fun saveManualProduct(
+    name: String,
+    category: ProductCategory,
+    stockValue: Int,
+    minimumStock: Int,
+    ocrIdentifier: String?,
+    currentUser: AppUser?
+)
+```
+
+Fragmento despues del cambio:
+
+```kotlin
+fun saveManualProduct(
+    name: String,
+    category: ProductCategory,
+    stockInput: String,
+    minimumStockInput: String,
+    ocrIdentifier: String?,
+    currentUser: AppUser?
+)
+```
+
+Fragmento antes del cambio:
+
+```kotlin
+val cleanName = name.trim()
+val existingProduct = getProductByNameAndCategoryUseCase(cleanName, category)
+```
+
+Fragmento despues del cambio:
+
+```kotlin
+val cleanName = name.trim()
+val stockValue = stockInput.toIntOrNull() ?: 0
+val minimumStock = minimumStockInput.toIntOrNull() ?: 0
+val existingProduct = getProductByNameAndCategoryUseCase(cleanName, category)
+```
+
+3. Ruta:
+app/src/main/java/com/example/myapplication/presentation/navigation/StickrVaultNavHost.kt
+
+Fragmento antes del cambio:
+
+```kotlin
+catalogViewModel.saveManualProduct(
+    name = product.name,
+    category = product.category,
+    stockValue = 1,
+    minimumStock = product.minimumStock,
+    ocrIdentifier = product.ocrIdentifier,
+    currentUser = currentUser
+)
+```
+
+Fragmento despues del cambio:
+
+```kotlin
+catalogViewModel.saveManualProduct(
+    name = product.name,
+    category = product.category,
+    stockInput = "1",
+    minimumStockInput = product.minimumStock.toString(),
+    ocrIdentifier = product.ocrIdentifier,
+    currentUser = currentUser
+)
+```
+
+Resumen del cambio:
+Se cambio el flujo de cantidad para que el ViewModel reciba texto y lo convierta de forma segura con toIntOrNull() ?: 0. En la UI se agrego attemptedSave, isError y supportingText para mostrar "Cantidad inválida: Se registrará 0" cuando el usuario intenta guardar con "abc" o campo vacio.
+
+Evidencia esperada:
+Captura completa del emulador en el formulario de actualizacion de stock, con el campo "Cantidad a modificar" mostrando "abc", borde rojo y supportingText: "Cantidad inválida: Se registrará 0".
+
+Comando de verificacion ejecutado:
+.\gradlew.bat :app:compileDebugKotlin
+
+Resultado:
+BUILD SUCCESSFUL.
+
+Respuesta teorica breve:
+Kotlin reduce fallos historicos como NullPointerException mediante tipos nulables explicitos y operadores seguros. En este caso, toIntOrNull() convierte una cadena a entero sin lanzar NumberFormatException: si la entrada es invalida, retorna null. El operador Elvis (?:) actua como cortocircuito y reemplaza ese null por un valor seguro, 0, impidiendo que el error llegue al repositorio o a Room. En una arquitectura reactiva, esto reduce deuda tecnica porque el ViewModel normaliza entradas antes de emitir estados o persistir datos, mientras Compose refleja el fallo con isError y supportingText sin cerrar la app.

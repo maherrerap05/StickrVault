@@ -143,8 +143,8 @@ class CatalogViewModel(
     fun saveManualProduct(
         name: String,
         category: ProductCategory,
-        stockValue: Int,
-        minimumStock: Int,
+        stockInput: String,
+        minimumStockInput: String,
         ocrIdentifier: String?,
         currentUser: AppUser?
     ) {
@@ -160,6 +160,8 @@ class CatalogViewModel(
 
             try {
                 val cleanName = name.trim()
+                val stockValue = stockInput.toIntOrNull() ?: 0
+                val minimumStock = minimumStockInput.toIntOrNull() ?: 0
                 val existingProduct = getProductByNameAndCategoryUseCase(cleanName, category)
 
                 val savedProduct = if (existingProduct != null) {

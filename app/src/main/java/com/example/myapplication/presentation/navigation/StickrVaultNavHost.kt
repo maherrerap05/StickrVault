@@ -101,8 +101,8 @@ fun StickrVaultNavHost(
                         catalogViewModel.saveManualProduct(
                             name = product.name,
                             category = product.category,
-                            stockValue = 1,
-                            minimumStock = product.minimumStock,
+                            stockInput = "1",
+                            minimumStockInput = product.minimumStock.toString(),
                             ocrIdentifier = product.ocrIdentifier,
                             currentUser = currentUser
                         )

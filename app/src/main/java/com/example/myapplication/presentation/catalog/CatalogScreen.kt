@@ -45,8 +45,8 @@ fun CatalogScreen(
                 viewModel.saveManualProduct(
                     name = name,
                     category = category,
-                    stockValue = stock,
-                    minimumStock = minStock,
+                    stockInput = stock,
+                    minimumStockInput = minStock,
                     ocrIdentifier = ocrId,
                     currentUser = currentUser
                 )
@@ -193,7 +193,7 @@ fun AddProductDialog(
     onCancel: () -> Unit,
     onDraftChange: ((AddProductDraft) -> AddProductDraft) -> Unit,
     onVerify: () -> Unit,
-    onConfirm: (name: String, category: ProductCategory, stock: Int, minStock: Int, ocrId: String) -> Unit
+    onConfirm: (name: String, category: ProductCategory, stock: String, minStock: String, ocrId: String) -> Unit
 ) {
     val name = draft.name
     val category = draft.category
@@ -206,12 +206,14 @@ fun AddProductDialog(
     }
 
     var expanded by remember { mutableStateOf(false) }
+    var attemptedSave by remember { mutableStateOf(false) }
 
     val isExistingProduct = wasVerified && existingProduct != null
     val isNewProduct = wasVerified && existingProduct == null
 
     val stockValue = stock.toIntOrNull()
     val minStockValue = minStock.toIntOrNull()
+    val isStockInputInvalid = attemptedSave && stockValue == null
 
     val resultingStock = if (isExistingProduct && stockValue != null) {
         existingProduct!!.currentStock + stockValue
@@ -332,12 +334,24 @@ fun AddProductDialog(
 
                     OutlinedTextField(
                         value = stock,
-                        onValueChange = { value -> onDraftChange { it.copy(stock = value) } },
+                        onValueChange = { value ->
+                            attemptedSave = false
+                            onDraftChange { it.copy(stock = value) }
+                        },
                         label = { Text("Cantidad a modificar") },
                         placeholder = { Text("Ej: 10 o -5") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        isError = isStockInputInvalid,
+                        supportingText = {
+                            if (isStockInputInvalid) {
+                                Text(
+                                    text = "Cantidad inválida: Se registrará 0",
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
                     )
 
                     Text(
@@ -375,11 +389,23 @@ fun AddProductDialog(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
                             value = stock,
-                            onValueChange = { value -> onDraftChange { it.copy(stock = value) } },
+                            onValueChange = { value ->
+                                attemptedSave = false
+                                onDraftChange { it.copy(stock = value) }
+                            },
                             label = { Text("Stock inicial") },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            isError = isStockInputInvalid,
+                            supportingText = {
+                                if (isStockInputInvalid) {
+                                    Text(
+                                        text = "Cantidad inválida: Se registrará 0",
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
                         )
 
                         OutlinedTextField(
@@ -413,15 +439,18 @@ fun AddProductDialog(
         confirmButton = {
             Button(
                 onClick = {
+                    attemptedSave = true
+                    if (stockValue == null || !isFormValid) return@Button
+
                     onConfirm(
                         name,
                         category,
-                        stockValue ?: 0,
-                        minStockValue ?: existingProduct?.minimumStock ?: 0,
+                        stock,
+                        minStock,
                         ocrId
                     )
                 },
-                enabled = isFormValid
+                enabled = isExistingProduct || isNewProduct
             ) {
                 Text(
                     when {
